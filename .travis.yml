@@ -1,0 +1,51 @@
+language: bash
+
+sudo: required
+
+services:
+  - docker
+
+env:
+#   Alpine
+  - OS_NAME=alpine OS_VERSION=3.7 OS_SUITE=3.7
+  - OS_NAME=alpine OS_VERSION=3.8 OS_SUITE=3.8
+#   Centos
+  - OS_NAME=centos OS_VERSION=7.3 OS_SUITE=1611
+  - OS_NAME=centos OS_VERSION=7 OS_SUITE=1804
+#   Ubuntu
+  - OS_NAME=ubuntu OS_VERSION=14.04 OS_SUITE=trusty
+  - OS_NAME=ubuntu OS_VERSION=16.04 OS_SUITE=xenial
+  - OS_NAME=ubuntu OS_VERSION=18.04 OS_SUITE=bionic
+  - OS_NAME=ubuntu OS_VERSION=18.10 OS_SUITE=cosmic
+before_install:
+  - export DOCKER_COMPOSE_VERSION=1.23.2
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+
+before_script:
+  - env | sort
+  - cd "$OS_NAME/$OS_SUITE"
+  - image="lezhicent/${OS_NAME}:${OS_SUITE}"
+
+script:
+  - travis_retry docker build -t "$image" .
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+      docker login --username="${DOCKER_REGISTRY_USER}" --password="${DOCKER_REGISTRY_PASSWORD}";
+      docker push $image;
+      docker tag $image lezhicent/${OS_NAME}:${OS_VERSION};
+      docker push lezhicent/${OS_NAME}:${OS_VERSION};
+      if [[ "${OS_NAME}" == "ubuntu" && "${OS_SUITE}" == "xenial" ]]; then
+        docker tag $image lezhicent/${OS_NAME}:latest;
+        docker push lezhicent/${OS_NAME}:latest;
+      fi;
+      if [[ "${OS_NAME}" == "centos" && "${OS_SUITE}" == "1804" ]]; then
+        docker tag $image lezhicent/${OS_NAME}:latest;
+        docker push lezhicent/${OS_NAME}:latest;
+      fi;
+    fi;
+
+# vim:set et ts=2 sw=2:
